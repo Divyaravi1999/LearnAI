@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Article Summarizer</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <!-- Main View -->
+  <div id="main-view">
+    <header>
+      <h1>📄 AI Article Summarizer</h1>
+      <button id="settings-btn" class="icon-btn" title="Settings">⚙️</button>
+    </header>
+
+    <!-- Loading State -->
+    <div id="loading-section" class="hidden">
+      <div class="spinner"></div>
+      <p>Summarizing article...</p>
+    </div>
+
+    <!-- Error State -->
+    <div id="error-section" class="hidden">
+      <p id="error-message" class="error-text"></p>
+      <button id="retry-btn" class="btn">Retry</button>
+    </div>
+
+    <!-- Summary Display -->
+    <div id="summary-section" class="hidden">
+      <h2>Summary:</h2>
+      <div id="summary-text" class="summary-box"></div>
+      <div class="action-buttons">
+        <button id="save-btn" class="btn">💾 Save</button>
+        <button id="copy-btn" class="btn">📋 Copy</button>
+      </div>
+      <p id="copy-confirmation" class="confirmation hidden">Copied!</p>
+    </div>
+
+    <!-- Saved Summaries List -->
+    <div id="saved-section">
+      <div class="saved-header" id="saved-toggle">
+        <span>Saved Summaries (<span id="saved-count">0</span>)</span>
+        <span id="saved-arrow">▼</span>
+      </div>
+      <ul id="saved-list" class="hidden"></ul>
+    </div>
+  </div>
+
+  <!-- Settings View -->
+  <div id="settings-view" class="hidden">
+    <header>
+      <button id="back-btn" class="icon-btn" title="Back">←</button>
+      <h1>Settings</h1>
+    </header>
+
+    <div class="settings-content">
+      <label for="provider-select">API Provider:</label>
+      <select id="provider-select">
+        <option value="openai">OpenAI</option>
+        <option value="openrouter">OpenRouter</option>
+      </select>
+
+      <label for="api-key-input">API Key:</label>
+      <input type="password" id="api-key-input" placeholder="sk-...">
+      <button id="save-key-btn" class="btn">Save Settings</button>
+      <p id="openai-info" class="info-text">ℹ️ Get your API key at <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a></p>
+      <p id="openrouter-info" class="info-text hidden">ℹ️ Get your API key at <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a></p>
+    </div>
+  </div>
+
+  <!-- Summary Detail View -->
+  <div id="detail-view" class="hidden">
+    <header>
+      <button id="detail-back-btn" class="icon-btn" title="Back">←</button>
+      <h1 id="detail-title">Summary</h1>
+    </header>
+    <div id="detail-content" class="summary-box"></div>
+    <button id="detail-delete-btn" class="btn btn-danger">🗑️ Delete</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
