@@ -271,6 +271,70 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // Return true to indicate we'll send a response asynchronously
     return true;
   }
+  
+  if (request.type === 'SUMMARIZE_SELECTION') {
+    // Get selected text from the active tab and summarize it
+    chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
+      if (!tabs || tabs.length === 0) {
+        sendResponse({
+          type: 'SUMMARY_RESULT',
+          payload: {
+            summary: '',
+            success: false,
+            error: 'No active tab found.'
+          }
+        });
+        return;
+      }
+
+      const tab = tabs[0];
+      
+      try {
+        // Get selected text from the page
+        const [result] = await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => window.getSelection().toString()
+        });
+        
+        const selectedText = result.result;
+        
+        if (!selectedText || selectedText.trim().length === 0) {
+          sendResponse({
+            type: 'SUMMARY_RESULT',
+            payload: {
+              summary: '',
+              success: false,
+              error: 'No text selected. Please select some text on the page first.'
+            }
+          });
+          return;
+        }
+        
+        const summaryResult = await summarizeSelectedText(selectedText, tab.id);
+        sendResponse({
+          type: 'SUMMARY_RESULT',
+          payload: {
+            summary: summaryResult.summary,
+            title: tab.title || 'Selected Text',
+            url: tab.url,
+            success: summaryResult.success,
+            error: summaryResult.error
+          }
+        });
+      } catch (err) {
+        sendResponse({
+          type: 'SUMMARY_RESULT',
+          payload: {
+            summary: '',
+            success: false,
+            error: `Failed to get selection: ${err.message}`
+          }
+        });
+      }
+    });
+
+    return true;
+  }
 });
 
 // Create context menu on extension install
@@ -454,5 +518,67 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     
     // Show result
     await showSelectionSummary(tab.id, result);
+  }
+});
+
+// Handle keyboard shortcut
+chrome.commands.onCommand.addListener(async (command) => {
+  if (command === 'summarize-selection') {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab) return;
+
+    try {
+      // Get selected text
+      const [result] = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => window.getSelection().toString()
+      });
+
+      const selectedText = result.result;
+      
+      if (!selectedText || selectedText.trim().length === 0) {
+        await showSelectionSummary(tab.id, {
+          success: false,
+          error: 'No text selected. Please select some text first.'
+        });
+        return;
+      }
+
+      // Show loading
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+          const existing = document.getElementById('ai-summary-popup');
+          if (existing) existing.remove();
+
+          const popup = document.createElement('div');
+          popup.id = 'ai-summary-popup';
+          popup.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 16px 24px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 999999;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 14px;
+          `;
+          popup.innerHTML = '<span style="color: #666;">⏳ Summarizing...</span>';
+          document.body.appendChild(popup);
+        }
+      });
+
+      // Generate and show summary
+      const summaryResult = await summarizeSelectedText(selectedText, tab.id);
+      await showSelectionSummary(tab.id, summaryResult);
+    } catch (err) {
+      await showSelectionSummary(tab.id, {
+        success: false,
+        error: `Error: ${err.message}`
+      });
+    }
   }
 });

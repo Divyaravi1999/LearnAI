@@ -6,6 +6,7 @@ const settingsView = document.getElementById('settings-view');
 const detailView = document.getElementById('detail-view');
 
 const loadingSection = document.getElementById('loading-section');
+const loadingText = document.getElementById('loading-text');
 const errorSection = document.getElementById('error-section');
 const summarySection = document.getElementById('summary-section');
 const savedSection = document.getElementById('saved-section');
@@ -35,6 +36,10 @@ const detailTitle = document.getElementById('detail-title');
 const detailContent = document.getElementById('detail-content');
 const detailDeleteBtn = document.getElementById('detail-delete-btn');
 
+const summarizePageBtn = document.getElementById('summarize-page-btn');
+const summarizeSelectionBtn = document.getElementById('summarize-selection-btn');
+const summarizeOptions = document.getElementById('summarize-options');
+
 // Current state
 let currentSummary = null;
 let currentDetailSummary = null;
@@ -52,9 +57,12 @@ function showView(view) {
 
 /**
  * Shows loading state in main view
+ * @param {string} message - Optional loading message
  */
-function showLoading() {
+function showLoading(message = 'Summarizing article...') {
+  summarizeOptions.classList.add('hidden');
   loadingSection.classList.remove('hidden');
+  loadingText.textContent = message;
   errorSection.classList.add('hidden');
   summarySection.classList.add('hidden');
 }
@@ -64,6 +72,7 @@ function showLoading() {
  * @param {string} message - Error message to display
  */
 function showError(message) {
+  summarizeOptions.classList.remove('hidden');
   loadingSection.classList.add('hidden');
   errorSection.classList.remove('hidden');
   summarySection.classList.add('hidden');
@@ -76,6 +85,7 @@ function showError(message) {
  * @param {Object} metadata - { title, url }
  */
 function showSummary(summary, metadata) {
+  summarizeOptions.classList.add('hidden');
   loadingSection.classList.add('hidden');
   errorSection.classList.add('hidden');
   summarySection.classList.remove('hidden');
@@ -92,7 +102,7 @@ function showSummary(summary, metadata) {
  * Triggers summarization of the current page
  */
 async function triggerSummarization() {
-  showLoading();
+  showLoading('Summarizing article...');
   
   try {
     const response = await chrome.runtime.sendMessage({ type: 'GENERATE_SUMMARY' });
@@ -104,6 +114,31 @@ async function triggerSummarization() {
         showSummary(summary, { title, url });
       } else {
         showError(error || 'Failed to generate summary.');
+      }
+    } else {
+      showError('No response from background script.');
+    }
+  } catch (err) {
+    showError('Failed to communicate with extension.');
+  }
+}
+
+/**
+ * Triggers summarization of selected text on the page
+ */
+async function triggerSelectionSummarization() {
+  showLoading('Summarizing selection...');
+  
+  try {
+    const response = await chrome.runtime.sendMessage({ type: 'SUMMARIZE_SELECTION' });
+    
+    if (response && response.payload) {
+      const { summary, title, url, success, error } = response.payload;
+      
+      if (success) {
+        showSummary(summary, { title: title || 'Selected Text', url });
+      } else {
+        showError(error || 'Failed to summarize selection.');
       }
     } else {
       showError('No response from background script.');
@@ -367,6 +402,14 @@ detailDeleteBtn.addEventListener('click', () => {
   deleteCurrentSummary();
 });
 
+summarizePageBtn.addEventListener('click', () => {
+  triggerSummarization();
+});
+
+summarizeSelectionBtn.addEventListener('click', () => {
+  triggerSelectionSummarization();
+});
+
 
 // Initialize popup on load
 document.addEventListener('DOMContentLoaded', async () => {
@@ -380,8 +423,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Show settings if no API key configured
     showView('settings');
   } else {
-    // Start summarization automatically
+    // Show main view with options (don't auto-summarize)
     showView('main');
-    triggerSummarization();
+    summarizeOptions.classList.remove('hidden');
   }
 });
